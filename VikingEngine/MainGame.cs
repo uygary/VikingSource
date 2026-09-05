@@ -52,6 +52,7 @@ namespace VikingEngine
         bool halfUpdate = true;
         GameTime gameTime;
         DateTime start;
+        int _updatesThisFrame = 0;
         //public TaskScheduler taskScheduler;
 
         /* Constructors */
@@ -138,7 +139,8 @@ namespace VikingEngine
         {
             //if (PlatformSettings.RunProgram == StartProgram.LootFest3 && Input.Keyboard.KeyDownEvent(Keys.D5))
             //{ PlatformSettings.DebugWindow = !PlatformSettings.DebugWindow; }
-            
+
+            _updatesThisFrame++;
             long startTimestamp = 0;
             if (PlatformSettings.DebugPerformanceText)
             {
@@ -153,7 +155,7 @@ namespace VikingEngine
             DebugExtensions.BlueScreen.TryCatch(updateLoop, DebugExtensions.TryMethodType.U);
             DebugExtensions.BlueScreen.CatchThreadExeception();
 
-            if (PlatformSettings.DebugPerformanceText)
+            if (PlatformSettings.DebugPerformanceText && startTimestamp > 0)
             {
                 var updateTimeMs = (float)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
                 DebugExtensions.RenderOverlay.Instance.RecordUpdate(updateTimeMs);
@@ -165,9 +167,32 @@ namespace VikingEngine
 
         protected override void Draw(GameTime gameTime)
         {
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                DebugExtensions.RenderOverlay.Instance.RecordUpdatesPerFrame(_updatesThisFrame);
+            }
+            _updatesThisFrame = 0;
+
             DebugExtensions.BlueScreen.TryCatch(Ref.draw.MainDrawLoop, DebugExtensions.TryMethodType.D);
             
             base.Draw(gameTime);
+        }
+
+        protected override void EndDraw()
+        {
+            long startTimestamp = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                startTimestamp = Stopwatch.GetTimestamp();
+            }
+
+            base.EndDraw();
+
+            if (PlatformSettings.DebugPerformanceText && startTimestamp > 0)
+            {
+                var presentMs = (float)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                DebugExtensions.RenderOverlay.Instance.RecordPresent(presentMs);
+            }
         }
 
        

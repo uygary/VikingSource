@@ -112,10 +112,232 @@ namespace VikingEngine.Tests
         }
 
         [Fact]
+        public void RenderOverlay_RecordPresent_TracksAverageAndPeak()
+        {
+            var overlay = new RenderOverlay();
+
+            overlay.RecordPresent(10.0f);
+            overlay.RecordPresent(20.0f);
+            overlay.RecordPresent(15.0f);
+
+            // Need at least one frame sample for UpdateOneSecond
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(1.0f);
+            overlay.UpdateOneSecond(frameCount: 3, renderPeak: 1.0, updatePeak: 1.0);
+
+            Assert.Equal(15.0f, overlay.AvgPresentTimeMs);
+            Assert.Equal(20.0f, overlay.MaxPresentTimeMs);
+        }
+
+        [Fact]
+        public void RenderOverlay_RecordUpdatesPerFrame_TracksAverageAndPeak()
+        {
+            var overlay = new RenderOverlay();
+
+            // Simulate 3 frames: 1 update, 2 updates, 3 updates
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.RecordUpdatesPerFrame(2);
+            overlay.RecordUpdatesPerFrame(3);
+
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(1.0f);
+            overlay.UpdateOneSecond(frameCount: 3, renderPeak: 1.0, updatePeak: 1.0);
+
+            Assert.Equal(2.0f, overlay.AvgUpdatesPerFrame);
+            Assert.Equal(3, overlay.PeakUpdatesPerFrame);
+        }
+
+        [Fact]
+        public void RenderOverlay_FormattedText_ContainsUpdPerFrameAndPresent()
+        {
+            var overlay = new RenderOverlay();
+
+            overlay.RecordUpdate(8.0f);
+            overlay.RecordUpdate(10.0f);
+            overlay.RecordUpdatesPerFrame(2);
+            overlay.RecordPresent(15.5f);
+            overlay.RecordFrame(1.8f);
+
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.8, updatePeak: 10.0);
+
+            // Verify key diagnostic values appear in formatted text
+            Assert.Contains("Upd/f", overlay.FormattedText);
+            Assert.Contains("Present:", overlay.FormattedText);
+            Assert.Contains("Update:", overlay.FormattedText);
+        }
+
+        [Fact]
+        public void RenderOverlay_PerFrameAggregateCost_CalculatedCorrectly()
+        {
+            var overlay = new RenderOverlay();
+
+            // 4 update calls averaging 10ms each, across 2 frames (2 Upd/f)
+            overlay.RecordUpdate(8.0f);
+            overlay.RecordUpdate(12.0f);
+            overlay.RecordUpdate(8.0f);
+            overlay.RecordUpdate(12.0f);
+            overlay.RecordUpdatesPerFrame(2);
+            overlay.RecordUpdatesPerFrame(2);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordPresent(5.0f);
+            overlay.RecordPresent(5.0f);
+
+            overlay.UpdateOneSecond(frameCount: 2, renderPeak: 1.0, updatePeak: 12.0);
+
+            Assert.Equal(10.0f, overlay.AvgUpdateTimeMs);
+            Assert.Equal(2.0f, overlay.AvgUpdatesPerFrame);
+            // Per-frame aggregate = 10.0 * 2.0 = 20.0ms — visible in formatted text
+            Assert.Contains("20.0ms", overlay.FormattedText);
+        }
+
+        [Fact]
+        public void RenderOverlay_ResetsBetweenSeconds()
+        {
+            var overlay = new RenderOverlay();
+
+            // First second
+            overlay.RecordPresent(20.0f);
+            overlay.RecordUpdatesPerFrame(3);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(5.0f);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.0, updatePeak: 5.0);
+
+            Assert.Equal(20.0f, overlay.AvgPresentTimeMs);
+            Assert.Equal(3.0f, overlay.AvgUpdatesPerFrame);
+
+            // Second second — different values
+            overlay.RecordPresent(5.0f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.RecordFrame(2.0f);
+            overlay.RecordUpdate(3.0f);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 2.0, updatePeak: 3.0);
+
+            Assert.Equal(5.0f, overlay.AvgPresentTimeMs);
+            Assert.Equal(1.0f, overlay.AvgUpdatesPerFrame);
+        }
+
+        [Fact]
         public void LegacyDrawBatchCollection_BaselineComparison()
         {
             var legacy = new LegacyDrawBatchCollection();
             Assert.Equal(0, legacy.Count);
+        }
+        [Fact]
+        public void RenderOverlay_RecordSimSubsystems_TracksAverages()
+        {
+            var overlay = new RenderOverlay();
+
+            overlay.RecordSimSubsystems(1.0f, 5.0f, 0.0f, 0.5f, 0.2f, 0.3f);
+            overlay.RecordSimSubsystems(3.0f, 7.0f, 0.0f, 1.5f, 0.4f, 0.1f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(10.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 2, renderPeak: 1.0, updatePeak: 10.0);
+
+            // Averages: cities = (1+3)/2 = 2, factions = (5+7)/2 = 6
+            Assert.Equal(2.0f, overlay.AvgCitiesMs, 1);
+            Assert.Equal(6.0f, overlay.AvgFactionsMs, 1);
+            Assert.Equal(0.0f, overlay.AvgFactionOneSecMs, 1);
+            Assert.Equal(1.0f, overlay.AvgMapMs, 1);
+            Assert.Equal(0.3f, overlay.AvgUserInputMs, 1);
+            Assert.Equal(0.2f, overlay.AvgParticlesMs, 1);
+        }
+
+        [Fact]
+        public void RenderOverlay_RecordSimSubsystems_TracksPeaks()
+        {
+            var overlay = new RenderOverlay();
+
+            overlay.RecordSimSubsystems(1.0f, 5.0f, 0.0f, 0.5f, 0.2f, 0.3f);
+            overlay.RecordSimSubsystems(3.0f, 7.0f, 50.0f, 1.5f, 0.4f, 0.1f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(10.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 2, renderPeak: 1.0, updatePeak: 10.0);
+
+            Assert.Equal(3.0f, overlay.PeakCitiesMs, 1);
+            Assert.Equal(7.0f, overlay.PeakFactionsMs, 1);
+            Assert.Equal(50.0f, overlay.PeakFactionOneSecMs, 1);
+            Assert.Equal(1.5f, overlay.PeakMapMs, 1);
+            Assert.Equal(0.4f, overlay.PeakUserInputMs, 1);
+            Assert.Equal(0.3f, overlay.PeakParticlesMs, 1);
+        }
+
+        [Fact]
+        public void RenderOverlay_RecordSimSubsystems_FactionOneSecOnlyOnSpikeTick()
+        {
+            var overlay = new RenderOverlay();
+
+            // Simulate 3 ticks: 2 normal + 1 oneSecond spike
+            overlay.RecordSimSubsystems(0.5f, 6.0f, 0.0f, 0.2f, 0.1f, 0.1f);
+            overlay.RecordSimSubsystems(0.4f, 5.5f, 0.0f, 0.3f, 0.1f, 0.1f);
+            overlay.RecordSimSubsystems(0.6f, 55.0f, 48.0f, 0.2f, 0.1f, 0.1f); // spike tick
+
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(10.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 3, renderPeak: 1.0, updatePeak: 55.0);
+
+            // FactionOneSec average: (0+0+48)/3 = 16.0
+            Assert.Equal(16.0f, overlay.AvgFactionOneSecMs, 1);
+            // FactionOneSec peak: 48.0
+            Assert.Equal(48.0f, overlay.PeakFactionOneSecMs, 1);
+            // Factions average: (6+5.5+55)/3 = 22.17
+            Assert.Equal(22.2f, overlay.AvgFactionsMs, 1);
+        }
+
+        [Fact]
+        public void RenderOverlay_RecordSimSubsystems_FormattedTextContainsSimLine()
+        {
+            var overlay = new RenderOverlay();
+
+            overlay.RecordSimSubsystems(0.5f, 6.0f, 0.0f, 0.2f, 0.1f, 0.3f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(10.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.0, updatePeak: 10.0);
+
+            Assert.Contains("Sim:", overlay.FormattedText);
+            Assert.Contains("Factions:", overlay.FormattedText);
+            Assert.Contains("1Sec:", overlay.FormattedText);
+            Assert.Contains("Cities:", overlay.FormattedText);
+            Assert.Contains("Map:", overlay.FormattedText);
+            Assert.Contains("Input:", overlay.FormattedText);
+            Assert.Contains("Particles:", overlay.FormattedText);
+        }
+
+        [Fact]
+        public void RenderOverlay_RecordSimSubsystems_ResetsBetweenSeconds()
+        {
+            var overlay = new RenderOverlay();
+
+            // First second with spike
+            overlay.RecordSimSubsystems(0.5f, 50.0f, 45.0f, 0.2f, 0.1f, 0.1f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(50.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.0, updatePeak: 50.0);
+
+            Assert.Equal(50.0f, overlay.AvgFactionsMs, 1);
+            Assert.Equal(45.0f, overlay.AvgFactionOneSecMs, 1);
+
+            // Second second — no spike
+            overlay.RecordSimSubsystems(0.4f, 5.0f, 0.0f, 0.3f, 0.2f, 0.2f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(6.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.0, updatePeak: 6.0);
+
+            Assert.Equal(5.0f, overlay.AvgFactionsMs, 1);
+            Assert.Equal(0.0f, overlay.AvgFactionOneSecMs, 1);
+            Assert.Equal(0.0f, overlay.PeakFactionOneSecMs, 1);
         }
     }
 }

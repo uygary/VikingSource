@@ -7,6 +7,7 @@ namespace VikingEngine.DebugExtensions
     public class RenderOverlay
     {
         public static RenderOverlay Instance = new RenderOverlay();
+        public static readonly string LayoutSeparator = MemoryOverlay.LayoutSeparator;
 
         public bool IsEnabled = true;
 
@@ -38,6 +39,31 @@ namespace VikingEngine.DebugExtensions
         private float _totalUpdateTimeMs = 0f;
         private uint _updateSampleCount = 0;
 
+        // GPU Present rolling metrics
+        private float _totalPresentTimeMs = 0f;
+        private float _maxPresentTimeMs = 0f;
+        private uint _presentSampleCount = 0;
+
+        // Updates-per-frame rolling metrics
+        private int _totalUpdatesPerFrame = 0;
+        private int _maxUpdatesPerFrame = 0;
+        private uint _updatesPerFrameSampleCount = 0;
+
+        // Simulation subsystem rolling metrics (Phase 4)
+        private float _totalCitiesMs = 0f;
+        private float _maxCitiesMs = 0f;
+        private float _totalFactionsMs = 0f;
+        private float _maxFactionsMs = 0f;
+        private float _totalFactionOneSecMs = 0f;
+        private float _maxFactionOneSecMs = 0f;
+        private float _totalMapMs = 0f;
+        private float _maxMapMs = 0f;
+        private float _totalUserInputMs = 0f;
+        private float _maxUserInputMs = 0f;
+        private float _totalParticlesMs = 0f;
+        private float _maxParticlesMs = 0f;
+        private uint _simSubsystemSampleCount = 0;
+
         // Aggregated 1-second results
         public int FPS { get; private set; } = 0;
         public float MinRenderTimeMs { get; private set; } = 0f;
@@ -67,6 +93,26 @@ namespace VikingEngine.DebugExtensions
         public float AvgFrameSlicesPerFrame { get; private set; } = 0f;
         public float AvgUploadedKBPerFrame { get; private set; } = 0f;
 
+        public float AvgPresentTimeMs { get; private set; } = 0f;
+        public float MaxPresentTimeMs { get; private set; } = 0f;
+
+        public float AvgUpdatesPerFrame { get; private set; } = 0f;
+        public int PeakUpdatesPerFrame { get; private set; } = 0;
+
+        // Simulation subsystem 1-second results (Phase 4)
+        public float AvgCitiesMs { get; private set; } = 0f;
+        public float PeakCitiesMs { get; private set; } = 0f;
+        public float AvgFactionsMs { get; private set; } = 0f;
+        public float PeakFactionsMs { get; private set; } = 0f;
+        public float AvgFactionOneSecMs { get; private set; } = 0f;
+        public float PeakFactionOneSecMs { get; private set; } = 0f;
+        public float AvgMapMs { get; private set; } = 0f;
+        public float PeakMapMs { get; private set; } = 0f;
+        public float AvgUserInputMs { get; private set; } = 0f;
+        public float PeakUserInputMs { get; private set; } = 0f;
+        public float AvgParticlesMs { get; private set; } = 0f;
+        public float PeakParticlesMs { get; private set; } = 0f;
+
         public string FormattedText { get; private set; } = string.Empty;
 
         public RenderOverlay()
@@ -85,6 +131,73 @@ namespace VikingEngine.DebugExtensions
             }
             _totalUpdateTimeMs += updateTimeMs;
             _updateSampleCount++;
+        }
+
+        public void RecordPresent(float presentTimeMs)
+        {
+            if (presentTimeMs > _maxPresentTimeMs)
+            {
+                _maxPresentTimeMs = presentTimeMs;
+            }
+            _totalPresentTimeMs += presentTimeMs;
+            _presentSampleCount++;
+        }
+
+        public void RecordUpdatesPerFrame(int updatesThisFrame)
+        {
+            if (updatesThisFrame > _maxUpdatesPerFrame)
+            {
+                _maxUpdatesPerFrame = updatesThisFrame;
+            }
+            _totalUpdatesPerFrame += updatesThisFrame;
+            _updatesPerFrameSampleCount++;
+        }
+
+        public void RecordSimSubsystems(
+            float citiesMs,
+            float factionsMs,
+            float factionOneSecMs,
+            float mapMs,
+            float userInputMs,
+            float particlesMs)
+        {
+            if (citiesMs > _maxCitiesMs)
+            {
+                _maxCitiesMs = citiesMs;
+            }
+            _totalCitiesMs += citiesMs;
+
+            if (factionsMs > _maxFactionsMs)
+            {
+                _maxFactionsMs = factionsMs;
+            }
+            _totalFactionsMs += factionsMs;
+
+            if (factionOneSecMs > _maxFactionOneSecMs)
+            {
+                _maxFactionOneSecMs = factionOneSecMs;
+            }
+            _totalFactionOneSecMs += factionOneSecMs;
+
+            if (mapMs > _maxMapMs)
+            {
+                _maxMapMs = mapMs;
+            }
+            _totalMapMs += mapMs;
+
+            if (userInputMs > _maxUserInputMs)
+            {
+                _maxUserInputMs = userInputMs;
+            }
+            _totalUserInputMs += userInputMs;
+
+            if (particlesMs > _maxParticlesMs)
+            {
+                _maxParticlesMs = particlesMs;
+            }
+            _totalParticlesMs += particlesMs;
+
+            _simSubsystemSampleCount++;
         }
 
         public void RecordFrame(
@@ -203,6 +316,28 @@ namespace VikingEngine.DebugExtensions
                 AvgUpdateTimeMs = 0f;
             }
 
+            if (_presentSampleCount > 0)
+            {
+                AvgPresentTimeMs = _totalPresentTimeMs / _presentSampleCount;
+                MaxPresentTimeMs = _maxPresentTimeMs;
+            }
+            else
+            {
+                AvgPresentTimeMs = 0f;
+                MaxPresentTimeMs = 0f;
+            }
+
+            if (_updatesPerFrameSampleCount > 0)
+            {
+                AvgUpdatesPerFrame = (float)_totalUpdatesPerFrame / _updatesPerFrameSampleCount;
+                PeakUpdatesPerFrame = _maxUpdatesPerFrame;
+            }
+            else
+            {
+                AvgUpdatesPerFrame = 0f;
+                PeakUpdatesPerFrame = 0;
+            }
+
             // Reset rolling accumulators
             _minRenderTimeMs = float.MaxValue;
             _maxRenderTimeMs = 0f;
@@ -227,9 +362,67 @@ namespace VikingEngine.DebugExtensions
             _totalUpdateTimeMs = 0f;
             _updateSampleCount = 0;
 
-            FormattedText = $"{FPS} FPS | Render: {AvgRenderTimeMs:F1}ms (Prep: {AvgPrepBatchesTimeMs:F1}ms, Depth: {AvgDrawDepthTimeMs:F1}ms, Lit: {AvgDrawLitTimeMs:F1}ms, Peak: {PeakRenderTimeMs:F1}ms) | " +
-                            $"Simulation Update: {AvgUpdateTimeMs:F1}ms (Peak: {PeakUpdateTimeMs:F1}ms) | VBO Stream: {AvgUploadedKBPerFrame:F1} KB/f | " +
-                            $"DrawCalls: {AvgTotalDrawCallsPerFrame:F0} (Inst: {AvgInstancedDrawCallsPerFrame:F0}, Std: {AvgStandardDrawCallsPerFrame:F0}) | Units/Inst: {AvgRenderedInstancesPerFrame:F0} (Batches: {AvgInstancedBatchesPerFrame:F0}, Slices: {AvgFrameSlicesPerFrame:F0})";
+            _totalPresentTimeMs = 0f;
+            _maxPresentTimeMs = 0f;
+            _presentSampleCount = 0;
+
+            _totalUpdatesPerFrame = 0;
+            _maxUpdatesPerFrame = 0;
+            _updatesPerFrameSampleCount = 0;
+
+            // Aggregate simulation subsystem metrics (Phase 4)
+            if (_simSubsystemSampleCount > 0)
+            {
+                AvgCitiesMs = _totalCitiesMs / _simSubsystemSampleCount;
+                PeakCitiesMs = _maxCitiesMs;
+                AvgFactionsMs = _totalFactionsMs / _simSubsystemSampleCount;
+                PeakFactionsMs = _maxFactionsMs;
+                AvgFactionOneSecMs = _totalFactionOneSecMs / _simSubsystemSampleCount;
+                PeakFactionOneSecMs = _maxFactionOneSecMs;
+                AvgMapMs = _totalMapMs / _simSubsystemSampleCount;
+                PeakMapMs = _maxMapMs;
+                AvgUserInputMs = _totalUserInputMs / _simSubsystemSampleCount;
+                PeakUserInputMs = _maxUserInputMs;
+                AvgParticlesMs = _totalParticlesMs / _simSubsystemSampleCount;
+                PeakParticlesMs = _maxParticlesMs;
+            }
+            else
+            {
+                AvgCitiesMs = 0f;
+                PeakCitiesMs = 0f;
+                AvgFactionsMs = 0f;
+                PeakFactionsMs = 0f;
+                AvgFactionOneSecMs = 0f;
+                PeakFactionOneSecMs = 0f;
+                AvgMapMs = 0f;
+                PeakMapMs = 0f;
+                AvgUserInputMs = 0f;
+                PeakUserInputMs = 0f;
+                AvgParticlesMs = 0f;
+                PeakParticlesMs = 0f;
+            }
+
+            // Reset simulation subsystem accumulators
+            _totalCitiesMs = 0f;
+            _maxCitiesMs = 0f;
+            _totalFactionsMs = 0f;
+            _maxFactionsMs = 0f;
+            _totalFactionOneSecMs = 0f;
+            _maxFactionOneSecMs = 0f;
+            _totalMapMs = 0f;
+            _maxMapMs = 0f;
+            _totalUserInputMs = 0f;
+            _maxUserInputMs = 0f;
+            _totalParticlesMs = 0f;
+            _maxParticlesMs = 0f;
+            _simSubsystemSampleCount = 0;
+
+            float perFrameUpdateMs = AvgUpdateTimeMs * AvgUpdatesPerFrame;
+
+            FormattedText = $"{FPS} FPS | Update: {AvgUpdateTimeMs:F1}ms x {AvgUpdatesPerFrame:F1} Upd/f = {perFrameUpdateMs:F1}ms | CPU Draw: {AvgRenderTimeMs:F1}ms (Prep: {AvgPrepBatchesTimeMs:F1}ms, Depth: {AvgDrawDepthTimeMs:F1}ms, Lit: {AvgDrawLitTimeMs:F1}ms) | Present: {AvgPresentTimeMs:F1}ms{LayoutSeparator}" +
+                            $"Update Peak: {PeakUpdateTimeMs:F1}ms | VBO: {AvgUploadedKBPerFrame:F1} KB/f{LayoutSeparator}" +
+                            $"DrawCalls: {AvgTotalDrawCallsPerFrame:F0} (Inst: {AvgInstancedDrawCallsPerFrame:F0}, Std: {AvgStandardDrawCallsPerFrame:F0}) | Units/Inst: {AvgRenderedInstancesPerFrame:F0} (Batches: {AvgInstancedBatchesPerFrame:F0}, Slices: {AvgFrameSlicesPerFrame:F0}){LayoutSeparator}" +
+                            $"Sim: Factions: {AvgFactionsMs:F1}ms (1Sec: {AvgFactionOneSecMs:F1}ms, Peak: {PeakFactionOneSecMs:F1}ms) | Cities: {AvgCitiesMs:F1}ms | Map: {AvgMapMs:F1}ms | Input: {AvgUserInputMs:F1}ms | Particles: {AvgParticlesMs:F1}ms";
         }
     }
 }

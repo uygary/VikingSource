@@ -7,6 +7,7 @@ namespace VikingEngine.DebugExtensions
     public class MemoryOverlay
     {
         public static MemoryOverlay Instance = new MemoryOverlay();
+        public static readonly string LayoutSeparator = "\n";//" | ";
 
         public bool IsEnabled = true;
 
@@ -95,7 +96,7 @@ namespace VikingEngine.DebugExtensions
             var heapMb = TotalHeapBytes / (1024.0 * 1024.0);
             var allocRateMb = AllocatedBytesDelta / (1024.0 * 1024.0);
 
-            FormattedText = $"Heap: {heapMb:F1}MB | Alloc: {allocRateMb:F2}MB/s | GC: [{Gen0Delta}/{Gen1Delta}/{Gen2Delta}] | Frame: {AvgFrameTimeMs:F1}ms (min: {MinFrameTimeMs:F1}, max: {MaxFrameTimeMs:F1})";
+            FormattedText = $"Heap: {heapMb:F1}MB | Alloc: {allocRateMb:F2}MB/s | GC: [{Gen0Delta}/{Gen1Delta}/{Gen2Delta}]{LayoutSeparator}Frame: {AvgFrameTimeMs:F1}ms (min: {MinFrameTimeMs:F1}, max: {MaxFrameTimeMs:F1})";
         }
     }
 }
