@@ -369,13 +369,91 @@ namespace VikingEngine.Tests
         [Fact]
         public void EngineDraw_RequestScreenshot_CanBeToggled()
         {
-            Engine.Draw.RequestScreenshot = false;
-            Assert.False(Engine.Draw.RequestScreenshot);
+            Engine.Draw.IsScreenshotRequested = false;
+            Assert.False(Engine.Draw.IsScreenshotRequested);
 
-            Engine.Draw.RequestScreenshot = true;
-            Assert.True(Engine.Draw.RequestScreenshot);
+            Engine.Draw.IsScreenshotRequested = true;
+            Assert.True(Engine.Draw.IsScreenshotRequested);
 
-            Engine.Draw.RequestScreenshot = false;
+            Engine.Draw.IsScreenshotRequested = false;
+        }
+
+        [Fact]
+        public void RenderOverlay_RecordEngineSubsystems_AggregatesAndFormatsCorrectly()
+        {
+            var overlay = new RenderOverlay();
+
+            overlay.RecordEngineSubsystems(
+                calcDeltaMs: 1.0f,
+                updateListMs: 3.0f,
+                syncQueMs: 2.0f,
+                gameStateMs: 1.8f,
+                inputSoundMs: 0.5f,
+                lazyUpdateMs: 0.2f
+            );
+            overlay.RecordEngineSubsystems(
+                calcDeltaMs: 5.0f,
+                updateListMs: 5.0f,
+                syncQueMs: 4.0f,
+                gameStateMs: 2.2f,
+                inputSoundMs: 0.7f,
+                lazyUpdateMs: 0.4f
+            );
+
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(10.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.0, updatePeak: 10.0);
+
+            Assert.Equal(3.0f, overlay.AvgEngineCalcDeltaMs, 1);
+            Assert.Equal(5.0f, overlay.PeakEngineCalcDeltaMs, 1);
+            Assert.Equal(4.0f, overlay.AvgEngineUpdateListMs, 1);
+            Assert.Equal(5.0f, overlay.PeakEngineUpdateListMs, 1);
+            Assert.Equal(3.0f, overlay.AvgEngineSyncQueMs, 1);
+            Assert.Equal(4.0f, overlay.PeakEngineSyncQueMs, 1);
+            Assert.Equal(2.0f, overlay.AvgEngineGameStateMs, 1);
+            Assert.Equal(2.2f, overlay.PeakEngineGameStateMs, 1);
+            Assert.Equal(0.6f, overlay.AvgEngineInputSoundMs, 1);
+            Assert.Equal(0.7f, overlay.PeakEngineInputSoundMs, 1);
+            Assert.Equal(0.3f, overlay.AvgEngineLazyUpdateMs, 1);
+            Assert.Equal(0.4f, overlay.PeakEngineLazyUpdateMs, 1);
+
+            Assert.Contains("Eng:", overlay.FormattedText);
+            Assert.Contains("Delta:", overlay.FormattedText);
+            Assert.Contains("UpdList:", overlay.FormattedText);
+            Assert.Contains("SyncQue:", overlay.FormattedText);
+            Assert.Contains("State:", overlay.FormattedText);
+            Assert.Contains("InSnd:", overlay.FormattedText);
+            Assert.Contains("Lazy:", overlay.FormattedText);
+        }
+
+        [Fact]
+        public void RenderOverlay_RecordEngineSubsystems_ResetsBetweenSeconds()
+        {
+            var overlay = new RenderOverlay();
+
+            // First second: with spike
+            overlay.RecordEngineSubsystems(110.0f, 3.0f, 2.0f, 1.8f, 0.5f, 0.2f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(110.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.0, updatePeak: 110.0);
+
+            Assert.Equal(110.0f, overlay.AvgEngineCalcDeltaMs, 1);
+            Assert.Equal(110.0f, overlay.PeakEngineCalcDeltaMs, 1);
+
+            // Second second: normal
+            overlay.RecordEngineSubsystems(0.2f, 3.0f, 2.0f, 1.8f, 0.5f, 0.2f);
+            overlay.RecordFrame(1.0f);
+            overlay.RecordUpdate(8.0f);
+            overlay.RecordPresent(0.1f);
+            overlay.RecordUpdatesPerFrame(1);
+            overlay.UpdateOneSecond(frameCount: 1, renderPeak: 1.0, updatePeak: 8.0);
+
+            Assert.Equal(0.2f, overlay.AvgEngineCalcDeltaMs, 1);
+            Assert.Equal(0.2f, overlay.PeakEngineCalcDeltaMs, 1);
         }
     }
 }

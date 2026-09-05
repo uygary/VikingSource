@@ -33,7 +33,8 @@ namespace VikingEngine.Engine
 
         /* Static */
         public static string DebugUpdateTimeText = TextLib.EmptyString;
-        public static bool RequestScreenshot = false;
+        public static bool IsScreenshotRequested = false;
+        public static bool IsScreenshotProcessed = false;
         public static int PreviousVertexBuffer =-1;
         public static RenderTargetImage RenderTargetImageBuffer;
         public static GraphicsDeviceManager graphicsDeviceManager;
@@ -516,10 +517,20 @@ namespace VikingEngine.Engine
                     --Update.SlowDownMarker;
                 }
 
-                if (RequestScreenshot)
+                if (IsScreenshotRequested)
                 {
-                    RequestScreenshot = false;
-                    SaveScreenshot(MainRenderTarget);
+                    if (!IsScreenshotProcessed)
+                    {
+                        IsScreenshotProcessed = true;
+                        SaveScreenshot(MainRenderTarget);
+                    }
+                }
+                else
+                {
+                    if (IsScreenshotProcessed)
+                    {
+                        IsScreenshotProcessed = false;
+                    }
                 }
 
                 graphicsDeviceManager.GraphicsDevice.SetRenderTarget(null);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Audio;
@@ -28,6 +29,9 @@ namespace VikingEngine.Engine
         float time_16msCountDown = 0;
         public float TotalGameTime = 0;
         public bool exitApplication = false;
+
+        private float _lastUpdateListMs = 0f;
+        private float _lastSyncQueMs = 0f;
         public TextInput textInput = null;
         //public bool blockGameInput = false;
         //public string blockGameInputId = null;
@@ -109,30 +113,106 @@ namespace VikingEngine.Engine
 
         public bool MainUpdate(GameTime gameTime)
         {
+            long tCalc = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                tCalc = Stopwatch.GetTimestamp();
+            }
+
             CalcDeltaTime(gameTime);
+
+            float calcDeltaMs = 0f;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                calcDeltaMs = (float)Stopwatch.GetElapsedTime(tCalc).TotalMilliseconds;
+            }
+
+            long tPreInput = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                tPreInput = Stopwatch.GetTimestamp();
+            }
+
 #if PCGAME
             Ref.steam?.Update();
 #endif
 #if XBOX
             Ref.xbox.update();
 #endif
-            Time_Update(Ref.DeltaTimeMs);
-            TaskExt.Update();//Ref.asynchUpdate.update();
 
+            float preInputMs = 0f;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                preInputMs = (float)Stopwatch.GetElapsedTime(tPreInput).TotalMilliseconds;
+            }
+
+            Time_Update(Ref.DeltaTimeMs);
+
+            long tPostInput = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                tPostInput = Stopwatch.GetTimestamp();
+            }
+
+            TaskExt.Update();//Ref.asynchUpdate.update();
 
             VikingEngine.Input.InputLib.Update();
             Sound.Update();
+
+            float inputSoundMs = preInputMs;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                inputSoundMs += (float)Stopwatch.GetElapsedTime(tPostInput).TotalMilliseconds;
+            }
+
             if (Ref.gamestate.UpdateCount == 0)
             {
                 Ref.gamestate.FirstUpdate();
             }
             ++Ref.gamestate.UpdateCount;
             ++Ref.TotalFrameCount;
+
+            long tState = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                tState = Stopwatch.GetTimestamp();
+            }
+
             Ref.gamestate.Time_Update(Ref.DeltaTimeMs);
+
+            float gameStateMs = 0f;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                gameStateMs = (float)Stopwatch.GetElapsedTime(tState).TotalMilliseconds;
+            }
+
+            long tLazy = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                tLazy = Stopwatch.GetTimestamp();
+            }
 
             if (LasyUpdatePart == Engine.LasyUpdatePart.Part8_LasyUpdateList)
             {
                 Time_UpdateLasyList();
+            }
+
+            float lazyUpdateMs = 0f;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                lazyUpdateMs = (float)Stopwatch.GetElapsedTime(tLazy).TotalMilliseconds;
+            }
+
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                DebugExtensions.RenderOverlay.Instance.RecordEngineSubsystems(
+                    calcDeltaMs,
+                    _lastUpdateListMs,
+                    _lastSyncQueMs,
+                    gameStateMs,
+                    inputSoundMs,
+                    lazyUpdateMs
+                );
             }
 
             if (PlatformSettings.ViewSlowDown)
@@ -201,9 +281,17 @@ namespace VikingEngine.Engine
 
             //XGuide.Update();
             if (Ref.netSession != null)
+            {
                 Ref.netSession.Time_Update(time);
+            }
             ParticleHandler.Update(time);
 
+
+            long tUpdList = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                tUpdList = Stopwatch.GetTimestamp();
+            }
 
             IUpdateable updateMember;
             updateCounter.Reset();
@@ -226,10 +314,26 @@ namespace VikingEngine.Engine
                 }
             }
 
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                _lastUpdateListMs = (float)Stopwatch.GetElapsedTime(tUpdList).TotalMilliseconds;
+            }
+
+            long tSync = 0;
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                tSync = Stopwatch.GetTimestamp();
+            }
+
             // Thread-safe dequeue.
             while (_syncQue.TryDequeue(out var syncAction))
             {
                 syncAction.runSyncAction();
+            }
+
+            if (PlatformSettings.DebugPerformanceText)
+            {
+                _lastSyncQueMs = (float)Stopwatch.GetElapsedTime(tSync).TotalMilliseconds;
             }
         }
 

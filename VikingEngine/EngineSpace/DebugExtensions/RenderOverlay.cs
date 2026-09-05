@@ -64,6 +64,21 @@ namespace VikingEngine.DebugExtensions
         private float _maxParticlesMs = 0f;
         private uint _simSubsystemSampleCount = 0;
 
+        // Engine loop rolling metrics (Phase 4.1)
+        private float _totalEngineCalcDeltaMs = 0f;
+        private float _maxEngineCalcDeltaMs = 0f;
+        private float _totalEngineUpdateListMs = 0f;
+        private float _maxEngineUpdateListMs = 0f;
+        private float _totalEngineSyncQueMs = 0f;
+        private float _maxEngineSyncQueMs = 0f;
+        private float _totalEngineGameStateMs = 0f;
+        private float _maxEngineGameStateMs = 0f;
+        private float _totalEngineInputSoundMs = 0f;
+        private float _maxEngineInputSoundMs = 0f;
+        private float _totalEngineLazyUpdateMs = 0f;
+        private float _maxEngineLazyUpdateMs = 0f;
+        private uint _engineSubsystemSampleCount = 0;
+
         // Aggregated 1-second results
         public int FPS { get; private set; } = 0;
         public float MinRenderTimeMs { get; private set; } = 0f;
@@ -112,6 +127,20 @@ namespace VikingEngine.DebugExtensions
         public float PeakUserInputMs { get; private set; } = 0f;
         public float AvgParticlesMs { get; private set; } = 0f;
         public float PeakParticlesMs { get; private set; } = 0f;
+
+        // Engine loop 1-second results (Phase 4.1)
+        public float AvgEngineCalcDeltaMs { get; private set; } = 0f;
+        public float PeakEngineCalcDeltaMs { get; private set; } = 0f;
+        public float AvgEngineUpdateListMs { get; private set; } = 0f;
+        public float PeakEngineUpdateListMs { get; private set; } = 0f;
+        public float AvgEngineSyncQueMs { get; private set; } = 0f;
+        public float PeakEngineSyncQueMs { get; private set; } = 0f;
+        public float AvgEngineGameStateMs { get; private set; } = 0f;
+        public float PeakEngineGameStateMs { get; private set; } = 0f;
+        public float AvgEngineInputSoundMs { get; private set; } = 0f;
+        public float PeakEngineInputSoundMs { get; private set; } = 0f;
+        public float AvgEngineLazyUpdateMs { get; private set; } = 0f;
+        public float PeakEngineLazyUpdateMs { get; private set; } = 0f;
 
         public string FormattedText { get; private set; } = string.Empty;
 
@@ -198,6 +227,53 @@ namespace VikingEngine.DebugExtensions
             _totalParticlesMs += particlesMs;
 
             _simSubsystemSampleCount++;
+        }
+
+        public void RecordEngineSubsystems(
+            float calcDeltaMs,
+            float updateListMs,
+            float syncQueMs,
+            float gameStateMs,
+            float inputSoundMs,
+            float lazyUpdateMs)
+        {
+            if (calcDeltaMs > _maxEngineCalcDeltaMs)
+            {
+                _maxEngineCalcDeltaMs = calcDeltaMs;
+            }
+            _totalEngineCalcDeltaMs += calcDeltaMs;
+
+            if (updateListMs > _maxEngineUpdateListMs)
+            {
+                _maxEngineUpdateListMs = updateListMs;
+            }
+            _totalEngineUpdateListMs += updateListMs;
+
+            if (syncQueMs > _maxEngineSyncQueMs)
+            {
+                _maxEngineSyncQueMs = syncQueMs;
+            }
+            _totalEngineSyncQueMs += syncQueMs;
+
+            if (gameStateMs > _maxEngineGameStateMs)
+            {
+                _maxEngineGameStateMs = gameStateMs;
+            }
+            _totalEngineGameStateMs += gameStateMs;
+
+            if (inputSoundMs > _maxEngineInputSoundMs)
+            {
+                _maxEngineInputSoundMs = inputSoundMs;
+            }
+            _totalEngineInputSoundMs += inputSoundMs;
+
+            if (lazyUpdateMs > _maxEngineLazyUpdateMs)
+            {
+                _maxEngineLazyUpdateMs = lazyUpdateMs;
+            }
+            _totalEngineLazyUpdateMs += lazyUpdateMs;
+
+            _engineSubsystemSampleCount++;
         }
 
         public void RecordFrame(
@@ -417,12 +493,60 @@ namespace VikingEngine.DebugExtensions
             _maxParticlesMs = 0f;
             _simSubsystemSampleCount = 0;
 
+            // Aggregate engine subsystem metrics (Phase 4.1)
+            if (_engineSubsystemSampleCount > 0)
+            {
+                AvgEngineCalcDeltaMs = _totalEngineCalcDeltaMs / _engineSubsystemSampleCount;
+                PeakEngineCalcDeltaMs = _maxEngineCalcDeltaMs;
+                AvgEngineUpdateListMs = _totalEngineUpdateListMs / _engineSubsystemSampleCount;
+                PeakEngineUpdateListMs = _maxEngineUpdateListMs;
+                AvgEngineSyncQueMs = _totalEngineSyncQueMs / _engineSubsystemSampleCount;
+                PeakEngineSyncQueMs = _maxEngineSyncQueMs;
+                AvgEngineGameStateMs = _totalEngineGameStateMs / _engineSubsystemSampleCount;
+                PeakEngineGameStateMs = _maxEngineGameStateMs;
+                AvgEngineInputSoundMs = _totalEngineInputSoundMs / _engineSubsystemSampleCount;
+                PeakEngineInputSoundMs = _maxEngineInputSoundMs;
+                AvgEngineLazyUpdateMs = _totalEngineLazyUpdateMs / _engineSubsystemSampleCount;
+                PeakEngineLazyUpdateMs = _maxEngineLazyUpdateMs;
+            }
+            else
+            {
+                AvgEngineCalcDeltaMs = 0f;
+                PeakEngineCalcDeltaMs = 0f;
+                AvgEngineUpdateListMs = 0f;
+                PeakEngineUpdateListMs = 0f;
+                AvgEngineSyncQueMs = 0f;
+                PeakEngineSyncQueMs = 0f;
+                AvgEngineGameStateMs = 0f;
+                PeakEngineGameStateMs = 0f;
+                AvgEngineInputSoundMs = 0f;
+                PeakEngineInputSoundMs = 0f;
+                AvgEngineLazyUpdateMs = 0f;
+                PeakEngineLazyUpdateMs = 0f;
+            }
+
+            // Reset engine subsystem accumulators
+            _totalEngineCalcDeltaMs = 0f;
+            _maxEngineCalcDeltaMs = 0f;
+            _totalEngineUpdateListMs = 0f;
+            _maxEngineUpdateListMs = 0f;
+            _totalEngineSyncQueMs = 0f;
+            _maxEngineSyncQueMs = 0f;
+            _totalEngineGameStateMs = 0f;
+            _maxEngineGameStateMs = 0f;
+            _totalEngineInputSoundMs = 0f;
+            _maxEngineInputSoundMs = 0f;
+            _totalEngineLazyUpdateMs = 0f;
+            _maxEngineLazyUpdateMs = 0f;
+            _engineSubsystemSampleCount = 0;
+
             float perFrameUpdateMs = AvgUpdateTimeMs * AvgUpdatesPerFrame;
 
             FormattedText = $"{FPS} FPS | Update: {AvgUpdateTimeMs:F1}ms x {AvgUpdatesPerFrame:F1} Upd/f = {perFrameUpdateMs:F1}ms | CPU Draw: {AvgRenderTimeMs:F1}ms (Prep: {AvgPrepBatchesTimeMs:F1}ms, Depth: {AvgDrawDepthTimeMs:F1}ms, Lit: {AvgDrawLitTimeMs:F1}ms) | Present: {AvgPresentTimeMs:F1}ms{LayoutSeparator}" +
                             $"Update Peak: {PeakUpdateTimeMs:F1}ms | VBO: {AvgUploadedKBPerFrame:F1} KB/f{LayoutSeparator}" +
                             $"DrawCalls: {AvgTotalDrawCallsPerFrame:F0} (Inst: {AvgInstancedDrawCallsPerFrame:F0}, Std: {AvgStandardDrawCallsPerFrame:F0}) | Units/Inst: {AvgRenderedInstancesPerFrame:F0} (Batches: {AvgInstancedBatchesPerFrame:F0}, Slices: {AvgFrameSlicesPerFrame:F0}){LayoutSeparator}" +
-                            $"Sim: Factions: {AvgFactionsMs:F1}ms (1Sec: {AvgFactionOneSecMs:F1}ms, Peak: {PeakFactionOneSecMs:F1}ms) | Cities: {AvgCitiesMs:F1}ms | Map: {AvgMapMs:F1}ms | Input: {AvgUserInputMs:F1}ms | Particles: {AvgParticlesMs:F1}ms";
+                            $"Sim: Factions: {AvgFactionsMs:F1}ms (1Sec: {AvgFactionOneSecMs:F1}ms, Peak: {PeakFactionOneSecMs:F1}ms) | Cities: {AvgCitiesMs:F1}ms | Map: {AvgMapMs:F1}ms | Input: {AvgUserInputMs:F1}ms | Particles: {AvgParticlesMs:F1}ms{LayoutSeparator}" +
+                            $"Eng: Delta: {AvgEngineCalcDeltaMs:F1}ms (Peak: {PeakEngineCalcDeltaMs:F1}ms) | UpdList: {AvgEngineUpdateListMs:F1}ms (Peak: {PeakEngineUpdateListMs:F1}ms) | SyncQue: {AvgEngineSyncQueMs:F1}ms (Peak: {PeakEngineSyncQueMs:F1}ms) | State: {AvgEngineGameStateMs:F1}ms | InSnd: {AvgEngineInputSoundMs:F1}ms | Lazy: {AvgEngineLazyUpdateMs:F1}ms";
         }
     }
 }

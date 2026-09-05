@@ -147,18 +147,18 @@ namespace VikingEngine
                 Input.Keyboard.KeyDownEvent(Keys.F12)
                 || Input.Keyboard.KeyDownEvent(Keys.PrintScreen);
 
-            if (Engine.Draw.RequestScreenshot)
+            if (Engine.Draw.IsScreenshotRequested)
             {
                 if (!isScreenshotKeyPressed)
                 {
-                    Engine.Draw.RequestScreenshot = false;
+                    Engine.Draw.IsScreenshotRequested = false;
                 }
             }
             else
             {
                 if (isScreenshotKeyPressed)
                 {
-                    Engine.Draw.RequestScreenshot = true;
+                    Engine.Draw.IsScreenshotRequested = true;
                 }
             }
         }
