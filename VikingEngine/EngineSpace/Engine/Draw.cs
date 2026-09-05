@@ -152,6 +152,7 @@ namespace VikingEngine.Engine
         /// Will override the normal render list and collect the images in the container instead
         /// </summary>
         public IDrawContainer AddToContainer = null;
+        public List<Graphics.IRenderTargetContainer> drawContainers = new List<Graphics.IRenderTargetContainer>();
 
         public Graphics.LFHeightMap heightmap;
 
@@ -507,7 +508,7 @@ namespace VikingEngine.Engine
                         uploadedBytes: uploadedBytes
                     );
 
-                    DrawOutlinedDebugText(2);
+                    DrawOutlinedDebugText(4);
                 }
                 if (Update.SlowDownMarker > 0)
                 {
@@ -589,7 +590,7 @@ namespace VikingEngine.Engine
         {
             spriteBatch.Begin(SpriteSortMode.Deferred, StandardBlendState);
 
-            var shadowColor = new Color(0, 0, 0, 64);
+            var shadowColor = new Color(0, 0, 0, 48);
             var scale = 1.0f;//0.6f;//0.5f;
             for (var x = -outlineThickness; x <= outlineThickness; x++)
             {
@@ -633,7 +634,12 @@ namespace VikingEngine.Engine
         }
 
         virtual protected void drawInContainersEvent()
-        { }
+        {
+            for (int i = 0; i < drawContainers.Count; ++i)
+            {
+                drawContainers[i].DrawToTarget();
+            }
+        }
 
         virtual public void OnShaderChange(ShaderChangeType changeType)
         { }

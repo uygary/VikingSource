@@ -167,6 +167,12 @@ namespace VikingEngine
         {
             ProcessScreenshot(gameTime);
 
+            if (Input.Keyboard.KeyDownEvent(Keys.F10))
+            {
+                PlatformSettings.DebugPerformanceText =
+                    !PlatformSettings.DebugPerformanceText;
+            }
+
             if (Input.Keyboard.KeyDownEvent(Keys.F11))
             {
                 Ref.update?.DumpUpdateListToFile();

@@ -490,11 +490,35 @@ namespace VikingEngine.Engine
 
         public static void SetFrameRate(int fps)
         {
-            Ref.main.TargetElapsedTime = new TimeSpan((long)(TimeSpan.TicksPerMillisecond * (1000.0 / (double)fps)));
+            var target = new TimeSpan((long)(TimeSpan.TicksPerMillisecond * (1000.0 / (double)fps)));
+            var maxElapsed = TimeSpan.FromTicks(target.Ticks * 2);
+
+            if (Ref.main != null)
+            {
+                // MonoGame enforces TargetElapsedTime <= MaxElapsedTime.
+                // Order assignments to prevent ArgumentOutOfRangeException on any FPS setting:
+                if (target > Ref.main.MaxElapsedTime)
+                {
+                    Ref.main.MaxElapsedTime = maxElapsed;
+                    Ref.main.TargetElapsedTime = target;
+                }
+                else
+                {
+                    Ref.main.TargetElapsedTime = target;
+                    Ref.main.MaxElapsedTime = maxElapsed;
+                }
+
+                Ref.TargetDeltaTimeMs = (float)Ref.main.TargetElapsedTime.TotalMilliseconds;
+                Ref.TargetDeltaTimeSec = (float)Ref.main.TargetElapsedTime.TotalSeconds;
+            }
+            else
+            {
+                Ref.TargetDeltaTimeMs = (float)target.TotalMilliseconds;
+                Ref.TargetDeltaTimeSec = (float)target.TotalSeconds;
+            }
+
             Ref.UpdateTimes30FPS = fps / 30;
             Ref.UpdateTimes60FPS = fps / 60f;
-            Ref.TargetDeltaTimeMs = (float)Ref.main.TargetElapsedTime.TotalMilliseconds;
-            Ref.TargetDeltaTimeSec =  (float)Ref.main.TargetElapsedTime.TotalSeconds;
         }
 
         public static int MillisecToFrames(float ms)
