@@ -37,12 +37,12 @@ namespace VikingEngine
         static bool gameIsActive = false;
         static int threadIndex = 0;
         private static int _mainThreadId;
-#if DEBUG
-        public static void SetMainThreadForTest()
+
+        internal static void SetMainThreadForTest()
         {
             _mainThreadId = Thread.CurrentThread.ManagedThreadId;
         }
-#endif
+
         public bool criticalContentIsLoaded = false;
 
         /* Static Methods */
