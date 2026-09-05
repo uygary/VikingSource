@@ -38,7 +38,7 @@ namespace VikingEngine.DebugExtensions
             _prevGen0 = GC.CollectionCount(0);
             _prevGen1 = GC.CollectionCount(1);
             _prevGen2 = GC.CollectionCount(2);
-            _prevAllocatedBytes = GC.GetTotalAllocatedBytes(true);
+            _prevAllocatedBytes = GC.GetTotalAllocatedBytes(false);
             TotalHeapBytes = GC.GetTotalMemory(false);
         }
 
@@ -62,7 +62,7 @@ namespace VikingEngine.DebugExtensions
             var currentGen0 = GC.CollectionCount(0);
             var currentGen1 = GC.CollectionCount(1);
             var currentGen2 = GC.CollectionCount(2);
-            var currentAllocated = GC.GetTotalAllocatedBytes(true);
+            var currentAllocated = GC.GetTotalAllocatedBytes(false);
 
             Gen0Delta = currentGen0 - _prevGen0;
             Gen1Delta = currentGen1 - _prevGen1;

@@ -723,20 +723,8 @@ namespace VikingEngine.DSSWars
                 userInputMs = (float)Stopwatch.GetElapsedTime(userInputStart).TotalMilliseconds;
             }
 
-            // --- Particles Update (runs unconditionally) ---
+            // --- Particles Update (handled centrally by Engine.Update.Time_Update) ---
             float particlesMs = 0f;
-            long particlesStart = 0;
-            if (profiling)
-            {
-                particlesStart = Stopwatch.GetTimestamp();
-            }
-
-            Engine.ParticleHandler.Update(time);
-
-            if (profiling && particlesStart > 0)
-            {
-                particlesMs = (float)Stopwatch.GetElapsedTime(particlesStart).TotalMilliseconds;
-            }
 
             // --- Record all subsystem timings ---
             if (profiling)

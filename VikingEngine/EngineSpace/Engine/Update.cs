@@ -32,6 +32,7 @@ namespace VikingEngine.Engine
 
         private float _lastUpdateListMs = 0f;
         private float _lastSyncQueMs = 0f;
+        public static double MaxSyncActionBudgetMs = 2.0;
         public TextInput textInput = null;
         //public bool blockGameInput = false;
         //public string blockGameInputId = null;
@@ -41,6 +42,7 @@ namespace VikingEngine.Engine
 
         // No lock necessary. Inherently thread sage.
         ConcurrentQueue<ISyncAction> _syncQue = new();
+        public int SyncQueCount => _syncQue.Count;
         
         public int GetUpdateListCount(UpdateType updateType)
         {
@@ -58,7 +60,7 @@ namespace VikingEngine.Engine
 
         public Update(GameState parentState)
         {
-            name = "Update for " + parentState.ToString();
+            name = "Update for " + (parentState != null ? parentState.ToString() : "TestState");
             updateLists = new SpottedArray<IUpdateable>[(int)UpdateType.NUM];
             for (int i = 0; i < (int)UpdateType.NUM; i++)
             {
@@ -109,6 +111,68 @@ namespace VikingEngine.Engine
                 }
             }
             layout.End();
+        }
+
+        public string DumpUpdateListSummary(UpdateType updateType = UpdateType.Full)
+        {
+            var typeCounts = new Dictionary<string, int>();
+            int total = 0;
+            var counter = new SpottedArrayCounter<IUpdateable>(updateLists[(int)updateType]);
+            while (counter.Next())
+            {
+                var item = counter.GetSelection;
+                if (item != null)
+                {
+                    string typeName = item.GetType().Name;
+                    if (!typeCounts.TryGetValue(typeName, out int currentCount))
+                    {
+                        currentCount = 0;
+                    }
+                    typeCounts[typeName] = currentCount + 1;
+                    total++;
+                }
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"=== UpdateList ({updateType}) Dump - Total Items: {total} ===");
+            var sorted = new List<KeyValuePair<string, int>>(typeCounts);
+            sorted.Sort((a, b) => b.Value.CompareTo(a.Value));
+            foreach (var kv in sorted)
+            {
+                sb.AppendLine($"{kv.Key}: {kv.Value}");
+            }
+            sb.AppendLine("==================================================");
+            return sb.ToString();
+        }
+
+        public string DumpUpdateListToFile(UpdateType updateType = UpdateType.Full)
+        {
+            try
+            {
+                string text = DumpUpdateListSummary(updateType);
+                string baseDir = VikingEngine.DataStream.FilePath.StorageDirectory();
+                if (string.IsNullOrEmpty(baseDir))
+                {
+                    baseDir = System.IO.Directory.GetCurrentDirectory();
+                }
+
+                string dir = System.IO.Path.Combine(baseDir, "DebugDumps");
+                if (!System.IO.Directory.Exists(dir))
+                {
+                    System.IO.Directory.CreateDirectory(dir);
+                }
+
+                string fileName = $"UpdateList_{updateType}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt";
+                string filePath = System.IO.Path.Combine(dir, fileName);
+                System.IO.File.WriteAllText(filePath, text);
+                VikingEngine.Debug.Log($"Update list dumped to: {filePath}");
+                return filePath;
+            }
+            catch (Exception ex)
+            {
+                VikingEngine.Debug.LogWarning($"Failed to dump update list: {ex.Message}");
+                return null;
+            }
         }
 
         public bool MainUpdate(GameTime gameTime)
@@ -230,7 +294,7 @@ namespace VikingEngine.Engine
         public const float Time16msInSeconds = 1f / 30f;
         public const float Time60Fps = 1000f / 60f;
 
-        void Time_Update(float time)
+        internal void Time_Update(float time)
         {
             lazyUpdateAccumulatedTime_next += time;
             TotalGameTime += time;
@@ -319,16 +383,16 @@ namespace VikingEngine.Engine
                 _lastUpdateListMs = (float)Stopwatch.GetElapsedTime(tUpdList).TotalMilliseconds;
             }
 
-            long tSync = 0;
-            if (PlatformSettings.DebugPerformanceText)
-            {
-                tSync = Stopwatch.GetTimestamp();
-            }
+            long tSync = Stopwatch.GetTimestamp();
 
-            // Thread-safe dequeue.
+            // Thread-safe dequeue with time budget throttling.
             while (_syncQue.TryDequeue(out var syncAction))
             {
                 syncAction.runSyncAction();
+                if (MaxSyncActionBudgetMs > 0 && Stopwatch.GetElapsedTime(tSync).TotalMilliseconds >= MaxSyncActionBudgetMs)
+                {
+                    break;
+                }
             }
 
             if (PlatformSettings.DebugPerformanceText)

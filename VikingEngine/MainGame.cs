@@ -163,9 +163,19 @@ namespace VikingEngine
             }
         }
 
-        protected override void Update(GameTime gameTime)
+        private void ProcessDebugHotkeys(GameTime gameTime)
         {
             ProcessScreenshot(gameTime);
+
+            if (Input.Keyboard.KeyDownEvent(Keys.F11))
+            {
+                Ref.update?.DumpUpdateListToFile();
+            }
+        }
+
+        protected override void Update(GameTime gameTime)
+        {
+            ProcessDebugHotkeys(gameTime);
 
             _updatesThisFrame++;
             long startTimestamp = 0;

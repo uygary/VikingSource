@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using VikingEngine.DebugExtensions;
+using VikingEngine.Engine;
 using VikingEngine.Graphics;
 using VikingEngine.Tests.Legacy;
 using Xunit;
@@ -455,5 +456,87 @@ namespace VikingEngine.Tests
             Assert.Equal(0.2f, overlay.AvgEngineCalcDeltaMs, 1);
             Assert.Equal(0.2f, overlay.PeakEngineCalcDeltaMs, 1);
         }
+
+        [Fact]
+        public void MemoryOverlay_DoesNotThrow_WithPreciseFalse()
+        {
+            var overlay = new MemoryOverlay();
+            overlay.RecordFrame(16.0f);
+            overlay.UpdateOneSecond();
+
+            Assert.True(overlay.TotalHeapBytes > 0);
+            Assert.Contains("Heap:", overlay.FormattedText);
+            Assert.Contains("Alloc:", overlay.FormattedText);
+        }
+
+        [Fact]
+        public void Update_DumpUpdateListSummary_CountsTypesCorrectly()
+        {
+            var update = new Update(null);
+            var dummy1 = new Phase5DummyUpdateableA();
+            var dummy2 = new Phase5DummyUpdateableA();
+            var dummy3 = new Phase5DummyUpdateableB();
+
+            update.AddToOrRemoveFromUpdate(dummy1, true);
+            update.AddToOrRemoveFromUpdate(dummy2, true);
+            update.AddToOrRemoveFromUpdate(dummy3, true);
+
+            string summary = update.DumpUpdateListSummary(UpdateType.Full);
+
+            Assert.Contains("Phase5DummyUpdateableA: 2", summary);
+            Assert.Contains("Phase5DummyUpdateableB: 1", summary);
+            Assert.Contains("Total Items: 3", summary);
+        }
+
+        [Fact]
+        public void Update_SyncQueThrottling_RespectsBudget()
+        {
+            var update = new Update(null);
+            double originalBudget = Update.MaxSyncActionBudgetMs;
+            try
+            {
+                Update.MaxSyncActionBudgetMs = 1.0;
+
+                int actionsExecuted = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                    update.AddSyncAction(new SyncAction(() =>
+                    {
+                        System.Threading.Thread.Sleep(5);
+                        actionsExecuted++;
+                    }));
+                }
+
+                Assert.Equal(4, update.SyncQueCount);
+
+                update.Time_Update(16.0f);
+
+                Assert.True(actionsExecuted < 4, $"Expected throttling to leave items in queue, but executed {actionsExecuted}");
+                Assert.True(actionsExecuted >= 1, $"Expected at least 1 action to execute, but executed {actionsExecuted}");
+                Assert.Equal(4 - actionsExecuted, update.SyncQueCount);
+            }
+            finally
+            {
+                Update.MaxSyncActionBudgetMs = originalBudget;
+            }
+        }
+    }
+
+    internal class Phase5DummyUpdateableA : IUpdateable
+    {
+        public int SpottedArrayMemberIndex { get; set; } = -1;
+        public bool SpottedArrayUseIndex => true;
+        public UpdateType UpdateType => UpdateType.Full;
+        public bool RunDuringPause => false;
+        public void Time_Update(float time_ms) { }
+    }
+
+    internal class Phase5DummyUpdateableB : IUpdateable
+    {
+        public int SpottedArrayMemberIndex { get; set; } = -1;
+        public bool SpottedArrayUseIndex => true;
+        public UpdateType UpdateType => UpdateType.Full;
+        public bool RunDuringPause => false;
+        public void Time_Update(float time_ms) { }
     }
 }
