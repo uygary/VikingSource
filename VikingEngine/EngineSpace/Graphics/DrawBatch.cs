@@ -48,6 +48,7 @@ namespace VikingEngine.Graphics
 
             if (instance.master == null)
             {
+                instance.OnDrawBatchAdd();
                 _loadingQueue.Enqueue(instance);
                 return;
             }
@@ -71,15 +72,21 @@ namespace VikingEngine.Graphics
 
         private void ProcessLoadingQueue()
         {
-            while (_loadingQueue.TryPeek(out var model) && model.master != null)
+            int count = _loadingQueue.Count;
+            while (count-- > 0)
             {
-                if (model.InRenderList)
+                var model = _loadingQueue.Dequeue();
+                if (!model.InRenderList)
                 {
-                    Add(model.master.modelIndex, _loadingQueue.Dequeue());
+                    model.OnDrawBatchRemove();
+                }
+                else if (model.master != null)
+                {
+                    Add(model.master.modelIndex, model);
                 }
                 else
                 {
-                    _loadingQueue.Dequeue().OnDrawBatchRemove();
+                    _loadingQueue.Enqueue(model);
                 }
             }
         }

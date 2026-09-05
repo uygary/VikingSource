@@ -339,5 +339,43 @@ namespace VikingEngine.Tests
             Assert.Equal(0.0f, overlay.AvgFactionOneSecMs, 1);
             Assert.Equal(0.0f, overlay.PeakFactionOneSecMs, 1);
         }
+
+        [Fact]
+        public void VoxelModelInstance_Pooled_PoolGeneration_IncrementsOnReset()
+        {
+            var instance = new DSSWars.VoxelModelInstance_Pooled(false);
+            Assert.Equal(0, instance.PoolGeneration);
+
+            instance.Pool_Reset();
+            Assert.Equal(1, instance.PoolGeneration);
+
+            instance.Pool_Reset();
+            Assert.Equal(2, instance.PoolGeneration);
+        }
+
+        [Fact]
+        public void DrawBatchCollection_AddNullMaster_SetsInRenderListTrue()
+        {
+            MainGame.SetMainThreadForTest();
+            var collection = new DrawBatchCollection();
+            var instance = new VoxelModelInstance(null, false);
+            Assert.False(instance.InRenderList);
+
+            collection.Add(instance);
+
+            Assert.True(instance.InRenderList);
+        }
+
+        [Fact]
+        public void EngineDraw_RequestScreenshot_CanBeToggled()
+        {
+            Engine.Draw.RequestScreenshot = false;
+            Assert.False(Engine.Draw.RequestScreenshot);
+
+            Engine.Draw.RequestScreenshot = true;
+            Assert.True(Engine.Draw.RequestScreenshot);
+
+            Engine.Draw.RequestScreenshot = false;
+        }
     }
 }

@@ -33,6 +33,7 @@ namespace VikingEngine.Engine
 
         /* Static */
         public static string DebugUpdateTimeText = TextLib.EmptyString;
+        public static bool RequestScreenshot = false;
         public static int PreviousVertexBuffer =-1;
         public static RenderTargetImage RenderTargetImageBuffer;
         public static GraphicsDeviceManager graphicsDeviceManager;
@@ -515,6 +516,11 @@ namespace VikingEngine.Engine
                     --Update.SlowDownMarker;
                 }
 
+                if (RequestScreenshot)
+                {
+                    RequestScreenshot = false;
+                    SaveScreenshot(MainRenderTarget);
+                }
 
                 graphicsDeviceManager.GraphicsDevice.SetRenderTarget(null);
 
@@ -533,6 +539,38 @@ namespace VikingEngine.Engine
                 graphicsDeviceManager.GraphicsDevice.Clear(ClrColor);
                 Draw2d(0);
                 
+            }
+        }
+
+        private void SaveScreenshot(RenderTarget2D renderTarget)
+        {
+            try
+            {
+                string baseDir = VikingEngine.DataStream.FilePath.StorageDirectory();
+                if (string.IsNullOrEmpty(baseDir))
+                {
+                    baseDir = System.IO.Directory.GetCurrentDirectory();
+                }
+
+                string dir = System.IO.Path.Combine(baseDir, "Screenshots");
+                if (!System.IO.Directory.Exists(dir))
+                {
+                    System.IO.Directory.CreateDirectory(dir);
+                }
+
+                string fileName = $"Screenshot_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png";
+                string filePath = System.IO.Path.Combine(dir, fileName);
+
+                using (var stream = new System.IO.FileStream(filePath, System.IO.FileMode.Create))
+                {
+                    renderTarget.SaveAsPng(stream, renderTarget.Width, renderTarget.Height);
+                }
+
+                VikingEngine.Debug.Log($"Screenshot saved: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                VikingEngine.Debug.LogError($"Screenshot failed: {ex.Message}");
             }
         }
 

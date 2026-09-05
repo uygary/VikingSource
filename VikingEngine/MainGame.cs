@@ -30,12 +30,19 @@ namespace VikingEngine
 
         public static int NextThreadIx { get { threadIndex++; return threadIndex; } }
 #if PCGAME
-        public static bool IsMainThread { get { return System.Threading.Thread.CurrentThread.ManagedThreadId == mainThreadID; } }
+        public static bool IsMainThread =>
+            Thread.CurrentThread.ManagedThreadId == _mainThreadId;
 #endif
         /* Static Fields */
         static bool gameIsActive = false;
         static int threadIndex = 0;
-        static int mainThreadID;
+        private static int _mainThreadId;
+#if DEBUG
+        public static void SetMainThreadForTest()
+        {
+            _mainThreadId = Thread.CurrentThread.ManagedThreadId;
+        }
+#endif
         public bool criticalContentIsLoaded = false;
 
         /* Static Methods */
@@ -134,11 +141,31 @@ namespace VikingEngine
         //    RegisterFocusedButtonForTextInput(OnTextInput);
         //}
 
+        private void ProcessScreenshot(GameTime gameTime)
+        {
+            var isScreenshotKeyPressed =
+                Input.Keyboard.KeyDownEvent(Keys.F12)
+                || Input.Keyboard.KeyDownEvent(Keys.PrintScreen);
+
+            if (Engine.Draw.RequestScreenshot)
+            {
+                if (!isScreenshotKeyPressed)
+                {
+                    Engine.Draw.RequestScreenshot = false;
+                }
+            }
+            else
+            {
+                if (isScreenshotKeyPressed)
+                {
+                    Engine.Draw.RequestScreenshot = true;
+                }
+            }
+        }
 
         protected override void Update(GameTime gameTime)
         {
-            //if (PlatformSettings.RunProgram == StartProgram.LootFest3 && Input.Keyboard.KeyDownEvent(Keys.D5))
-            //{ PlatformSettings.DebugWindow = !PlatformSettings.DebugWindow; }
+            ProcessScreenshot(gameTime);
 
             _updatesThisFrame++;
             long startTimestamp = 0;
@@ -211,7 +238,7 @@ namespace VikingEngine
         {
             int targetFrameRate = 60;
 #if PCGAME
-            mainThreadID = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            _mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
 #endif
             var sett = new GameSettings();
             new Network.NetworkSettings();
